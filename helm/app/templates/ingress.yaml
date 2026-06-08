@@ -2,9 +2,8 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: {{ .Release.Name }}
-  annotations:
-    kubernetes.io/ingress.class: traefik
 spec:
+  ingressClassName: {{ .Values.ingress.className }}
   rules:
   - host: {{ .Values.ingress.hostname }}
     http:

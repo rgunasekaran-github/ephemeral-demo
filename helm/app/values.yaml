@@ -20,4 +20,5 @@ service:
   port: 3000
 
 ingress:
-  hostname: ""   # injected by ApplicationSet
+  hostname: ""        # injected by ApplicationSet
+  className: nginx

@@ -1,0 +1,23 @@
+cosmos:
+  accountName: homelab-cosmos
+  resourceGroupName: rg-ephemeral-demo
+  databaseName: tododb       # overridden per PR by ApplicationSet: pr-<N>-db
+  containerName: todos
+  partitionKeyPath: /pk
+
+pr:
+  number: "0"
+  branch: main
+
+image:
+  repository: ghcr.io/rgunasekaran-github/ephemeral-demo
+  tag: latest
+  pullPolicy: Always
+
+replicaCount: 1
+
+service:
+  port: 3000
+
+ingress:
+  hostname: ""   # injected by ApplicationSet

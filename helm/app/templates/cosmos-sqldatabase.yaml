@@ -1,0 +1,12 @@
+apiVersion: cosmosdb.azure.upbound.io/v1beta1
+kind: SQLDatabase
+metadata:
+  name: {{ .Values.cosmos.databaseName }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  forProvider:
+    accountName: {{ .Values.cosmos.accountName }}
+    resourceGroupName: {{ .Values.cosmos.resourceGroupName }}
+  providerConfigRef:
+    name: default-azure

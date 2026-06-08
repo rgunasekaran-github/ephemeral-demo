@@ -1,0 +1,63 @@
+name: Preview TTL Reaper
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+    inputs:
+      preview_ttl_minutes:
+        description: "TTL in minutes (overrides default)"
+        required: false
+        default: "1440"
+
+jobs:
+  reap-expired-previews:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - name: Reap expired preview PRs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PREVIEW_TTL_MINUTES: ${{ inputs.preview_ttl_minutes || vars.PREVIEW_TTL_MINUTES || '1440' }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          NOW=$(date -u +%s)
+          echo "[ttl-reaper] started  ttl=${PREVIEW_TTL_MINUTES}min  now=$(date -u +%FT%TZ)"
+
+          PRS=$(gh pr list --repo "$GH_REPO" --state open --label preview --json number,createdAt --limit 100)
+          echo "[ttl-reaper] found $(echo "$PRS" | jq 'length') open PRs with preview label"
+
+          reaped=0
+          skipped=0
+
+          while IFS= read -r pr; do
+            PR_NUMBER=$(echo "$pr" | jq -r '.number')
+            CREATED_AT=$(echo "$pr" | jq -r '.createdAt')
+
+            CREATION_TS=$(date -d "$CREATED_AT" +%s)
+            LIFETIME_MINUTES=$(( (NOW - CREATION_TS) / 60 ))
+
+            echo "[ttl-reaper] pr=${PR_NUMBER}  lifetime=${LIFETIME_MINUTES}min"
+
+            if [ "$LIFETIME_MINUTES" -lt "$PREVIEW_TTL_MINUTES" ]; then
+              skipped=$((skipped + 1))
+              continue
+            fi
+
+            echo "[ttl-reaper] REAP pr=${PR_NUMBER}  lifetime=${LIFETIME_MINUTES}min  threshold=${PREVIEW_TTL_MINUTES}min"
+
+            gh pr edit "$PR_NUMBER" --repo "$GH_REPO" --remove-label preview
+
+            LIFETIME_HOURS=$(( LIFETIME_MINUTES / 60 ))
+            TTL_HOURS=$(( PREVIEW_TTL_MINUTES / 60 ))
+            gh pr comment "$PR_NUMBER" --repo "$GH_REPO" \
+              --body "Preview environment torn down: this preview PR has been running for ${LIFETIME_HOURS} hours (max ${TTL_HOURS} hours). Re-add the \`preview\` label to spin up a new environment."
+
+            reaped=$((reaped + 1))
+            echo "[ttl-reaper] DONE pr=${PR_NUMBER}"
+          done < <(echo "$PRS" | jq -c '.[]')
+
+          echo "[ttl-reaper] finished  reaped=${reaped}  skipped=${skipped}"

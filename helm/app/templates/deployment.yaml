@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: app
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.port }}
+          env:
+            - name: PORT
+              value: "{{ .Values.service.port }}"
+            - name: PR_NUMBER
+              value: "{{ .Values.pr.number }}"
+            - name: BRANCH_NAME
+              value: "{{ .Values.pr.branch }}"
+            - name: COSMOS_DB
+              value: {{ .Values.cosmos.databaseName }}
+            - name: COSMOS_CONTAINER
+              value: {{ .Values.cosmos.containerName }}
+            - name: COSMOS_INSECURE
+              value: "false"
+            - name: COSMOS_CONNECTION_STRING
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "app.cosmosConnSecret" . }}
+                  key: attribute.primary_sql_connection_string
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: 15
+            periodSeconds: 20

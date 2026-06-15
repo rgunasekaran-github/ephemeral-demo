@@ -15,6 +15,8 @@ import (
 	"github.com/rgunasekaran-github/ephemeral-demo/internal/store"
 )
 
+const version = "0.1.1"
+
 func main() {
 	ctx := context.Background()
 
